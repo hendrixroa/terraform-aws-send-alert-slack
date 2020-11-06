@@ -1,7 +1,7 @@
 // Send alert slack
 module "lambda_send_alert_slack" {
   source               = "hendrixroa/lambda/aws"
-  enabled              = 1
+  enabled              = var.enabled
   code_location        = "./src/"
   filename             = "sendAlertsMessagesSlack.zip"
   lambda_iam_role      = aws_iam_role.lambda_alerting_role.arn

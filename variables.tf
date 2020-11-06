@@ -27,3 +27,7 @@ variable "runtime" {
 variable "account_id" {}
 
 variable "sns_topic_arn" {}
+
+variable "enabled" {
+  default = 1
+}
