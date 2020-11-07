@@ -1,5 +1,5 @@
 resource "aws_iam_role" "lambda_alerting_role" {
-  name = "lambda_emailscsv_execution_role"
+  name = "lambda_${var.name}_execution_role"
 
   assume_role_policy = <<EOF
 {
@@ -19,7 +19,7 @@ EOF
 }
 
 resource "aws_iam_role_policy" "lambda_alerting_policy" {
-  name = "lambda_alerting_execution_policy"
+  name = "lambda_${var.name}_execution_policy"
   role = aws_iam_role.lambda_alerting_role.id
 
   policy = <<EOF
