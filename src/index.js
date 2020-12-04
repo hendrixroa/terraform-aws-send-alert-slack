@@ -1,12 +1,11 @@
-const axios = require('axios');
 const _ = require('lodash');
 const Redis = require("ioredis");
 const FunctionShield = require('@puresec/function-shield');
 const logger = require('pino')();
-
+const { WebClient } = require('@slack/web-api');
 
 const ENV = process.env;
-const slackElasticAlertsToken = ENV.slack_elastic_alert_token;
+const slackClient = new WebClient(ENV.slack_elastic_alert_token);
 const redisConn = new Redis(ENV.redis_url);
 const nameChannel = ENV.name_channel;
 
@@ -44,10 +43,10 @@ exports.handler = async (event, context) => {
         return context.succeed();
     }
 
-    for (let message of dataMessage){
+    for (let item of dataMessage){
 
         // Checking duplicates in redis
-        const keyMsgId = `es-event:${message.id}`;
+        const keyMsgId = `es-event:${item.id}`;
         const msgRedisState = await redisConn.setnx(keyMsgId, 1);
         if(!msgRedisState){
             await redisConn.expire(keyMsgId, 60 * 8 ); // Expire by 8min
@@ -55,18 +54,8 @@ exports.handler = async (event, context) => {
             continue;
         }
 
-        let errorMessage = '';
-        try {
-            errorMessage = JSON.parse(message.log);
-            if(!errorMessage.hasOwnProperty('msg')){
-                continue;
-            }
-        } catch (e) {
-            // Ignoring
-            continue;
-        }
-
-        const colorStage = getStageSlack(message.stage);
+        let errorMessage = item.message;
+        const colorStage = getStageSlack(item.stage);
 
         let postData = {
             channel: nameChannel,
@@ -76,28 +65,20 @@ exports.handler = async (event, context) => {
             mrkdwn: true
         };
 
-        postData.attachments.push({
-            author_name: `${message.nameService.toUpperCase()} - ${colorStage.stage.toUpperCase()}`,
-            attachment_type: 'default',
-            color: colorStage.color,
-            text: `*ERROR*: ${errorMessage.msg} (<${message.kibanaUrl}|Kibana>)`,
-            mrkdwn_in: ['text']
-        });
-
-        const options = {
-            method: 'post',
-            url: `https://slack.com/api/chat.postMessage`,
-            data: postData,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${slackElasticAlertsToken}`
-            }
-        };
-
         try {
 
-            await doRequest(options);
-
+            await slackClient.chat.postMessage({
+                ...postData,
+                attachments: [
+                    {
+                        author_name: `${message.nameService.toUpperCase()} - ${colorStage.stage.toUpperCase()}`,
+                        attachment_type: 'default',
+                        color: colorStage.color,
+                        text: `*ERROR*: ${errorMessage} (<${message.kibanaUrl}|Kibana>)`,
+                        mrkdwn_in: 'text'
+                    },
+                ],
+            });
         } catch (error) {
             logger.error('Error to send alerts: ', error.response, error.response.data);
             return context.fail(error.response.data);
@@ -109,8 +90,4 @@ exports.handler = async (event, context) => {
 function getStageSlack(stage){
     return stage.includes('staging') ? { stage: 'staging', color: '#ffc76d' } :
         stage.includes('production') ? { stage: 'pro', color: '#ff0000' } : null;
-}
-
-async function doRequest(options) {
-    return await axios(options);
 }
