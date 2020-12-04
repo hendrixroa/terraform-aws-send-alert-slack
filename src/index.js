@@ -71,17 +71,17 @@ exports.handler = async (event, context) => {
                 ...postData,
                 attachments: [
                     {
-                        author_name: `${message.nameService.toUpperCase()} - ${colorStage.stage.toUpperCase()}`,
+                        author_name: `${item.nameService.toUpperCase()} - ${colorStage.stage.toUpperCase()}`,
                         attachment_type: 'default',
                         color: colorStage.color,
-                        text: `*ERROR*: ${errorMessage} (<${message.kibanaUrl}|Kibana>)`,
+                        text: `*ERROR*: ${errorMessage} (<${item.kibanaUrl}|Kibana>)`,
                         mrkdwn_in: 'text'
                     },
                 ],
             });
         } catch (error) {
-            logger.error('Error to send alerts: ', error.response, error.response.data);
-            return context.fail(error.response.data);
+            logger.error('Error to send alerts: ', error);
+            return context.fail(error);
         }
     }
     return context.succeed();
